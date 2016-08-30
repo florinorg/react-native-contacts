@@ -67,7 +67,12 @@ public class ContactsManager extends ReactContextBaseJavaModule {
       phonesLabels = new Integer[numOfPhones];
       for(int i=0; i < numOfPhones; i++) {
         phones[i] = phoneNumbers.getMap(i).getString("number");
-        String label = phoneNumbers.getMap(i).getString("label");
+        String label = null;
+        try {
+          label = phoneNumbers.getMap(i).getString("label");
+        } catch(Throwable e) {
+          label = "mobile";
+        }
         phonesLabels[i] = mapStringToPhoneType(label);
       }
     }
