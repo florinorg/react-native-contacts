@@ -1,9 +1,7 @@
 # React Native Contacts
-Work in progress successor to react-native-addressbook. This is essentially a pre-alpha release. Expect breaking changes!
-
 Rx support with [react-native-contacts-rx](https://github.com/JeanLebrument/react-native-contacts-rx)
 
-#### Status
+## Status
 * Preliminary iOS and Android support
 * API subject to revision, changelog in release notes  
 
@@ -11,7 +9,7 @@ Rx support with [react-native-contacts-rx](https://github.com/JeanLebrument/reac
 | ------- | --- | ------- |
 | `getAll`  | ✔   | ✔ |
 | `addContact` | ✔ | ✔ |
-| `updateContact` | ✔ | 😞 |
+| `updateContact` | ✔ | ✔ |
 | `deleteContact` | ✔ | 😞 |
 | get with options | 😞 | 😞 |
 | groups  | 😞 | 😞 |
@@ -19,7 +17,9 @@ Rx support with [react-native-contacts-rx](https://github.com/JeanLebrument/reac
 
 
 ## API
-`getAll` (callback) - returns *all* contacts as an array of objects  
+`getAll` (callback) - returns *all* contacts as an array of objects
+`getAllWithoutPhotos` - same as `getAll` on Android, but on iOS it will not return uris for contact photos (because there's a significant overhead in creating the images)
+`getPhotoForId(contactId, callback)` - returns a URI (or null) for a contacts photo
 `addContact` (contact, callback) - adds a contact to the AddressBook.  
 `updateContact` (contact, callback) - where contact is an object with a valid recordID  
 `deleteContact` (contact, callback) - where contact is an object with a valid recordID  
@@ -46,19 +46,32 @@ Contacts.getAll((err, contacts) => {
 ## Example Contact Record
 ```js
 {
-  recordID: 1,
-  familyName: "Jung",
-  givenName: "Carl",
-  middleName: "",
+  recordID: '6b2237ee0df85980',
+  company: "",
   emailAddresses: [{
     label: "work",
     email: "carl-jung@example.com",
   }],
+  familyName: "Jung",
+  givenName: "Carl",
+  jobTitle: "",
+  middleName: "",
   phoneNumbers: [{
     label: "mobile",
     number: "(555) 555-5555",
   }],
-  thumbnailPath: "",
+  thumbnailPath: 'content://com.android.contacts/display_photo/3',
+  postalAddresses: 
+    [ 
+      {
+        postCode: 'Postcooode',
+        city: 'City',
+        neighborhood: 'neighborhood',
+        street: 'Home Street',
+        formattedAddress: 'Home Street\nneighborhood\nCity Postcooode',
+        label: 'work' 
+      }
+    ]
 }
 ```
 **NOTE**
@@ -68,12 +81,12 @@ Contacts.getAll((err, contacts) => {
 Currently all fields from the contact record except for thumbnailPath are supported for writing
 ```js
 var newPerson = {
-  familyName: "Nietzsche",
-  givenName: "Friedrich",
   emailAddresses: [{
     label: "work",
     email: "mrniet@example.com",
   }],
+  familyName: "Nietzsche",
+  givenName: "Friedrich",
 }
 
 Contacts.addContact(newPerson, (err) => { /*...*/ })
@@ -99,15 +112,12 @@ Update and delete reference contacts by their recordID (as returned by the OS in
 
 You can also delete a record using only it's recordID like follows: `Contacts.deleteContact({recordID: 1}, (err) => {})}`
 
-## Displaying Thumbnails (iOS only)
+## Displaying Thumbnails
 
 The thumbnailPath is the direct URI for the temp location of the contact's cropped thumbnail image.
 
 ```js
-<Image
-  source={{uri: contact.thumbnailPath}}
-  style={styles.thumb}
-/>
+<Image source={{uri: contact.thumbnailPath}} />
 ```
 
 ## Getting started
@@ -117,6 +127,15 @@ run `npm install react-native-contacts`
 1. In XCode, in the project navigator, right click `Libraries` ➜ `Add Files to [your project's name]`
 2. add `./node_modules/react-native-contacts/ios/RCTContacts.xcodeproj`
 3. In the XCode project navigator, select your project, select the `Build Phases` tab and in the `Link Binary With Libraries` section add **libRCTContacts.a**
+
+#### Permissions
+As of Xcode 8 and React Native 0.33 it is now **necessary to add kit specific "permission" keys** to your Xcode `Info.plist` file, in order to make `requestPermission` work. Otherwise your app crashes when requesting the specific permission. I discovered this after days of frustration.
+
+Open Xcode > Info.plist > Add a key (starting with "Privacy - ...") with your kit specific permission. The value for the key is optional.
+
+You have to add the key "Privacy - Contacts Usage Description".
+
+<img width="338" alt="screen shot 2016-09-21 at 13 13 21" src="https://cloud.githubusercontent.com/assets/5707542/18704973/3cde3b44-7ffd-11e6-918b-63888e33f983.png">
 
 ### Android
 * In `android/settings.gradle`
@@ -135,19 +154,15 @@ dependencies {
 }
 ```
 
-* register module (in android/app/src/main/java/[your-app-namespace]/MainActivity.java)
+* register module (in android/app/src/main/java/com/[your-app-name]/MainApplication.java)
 ```java
 	...
 
 	import com.rt2zz.reactnativecontacts.ReactNativeContacts; 	// <--- import module!
 
-	public class MainActivity extends ReactActivity {
-		...
-
-	   	/**
-	   	* A list of packages used by the app. If the app uses additional views
-	   	* or modules besides the default ones, add more packages here.
-	   	*/
+	public class MainApplication extends Application implements ReactApplication {
+	    ...
+		
 	    @Override
 	    protected List<ReactPackage> getPackages() {
 	      return Arrays.<ReactPackage>asList(
@@ -159,7 +174,7 @@ dependencies {
     	...
     }
 ```
-If you are using an older version of MainActivity (i.e. `public class MainActivity extends Activity`) please see the [old instructions](https://github.com/rt2zz/react-native-contacts/tree/1ce4b876a416bc2ca3c53e7d7e0296f7fcb7ce40#android)
+If you are using an older version of RN (i.e. `MainApplication.java` does not contain this method (or doesn't exist) and MainActivity.java starts with `public class MainActivity extends Activity`) please see the [old instructions](https://github.com/rt2zz/react-native-contacts/tree/1ce4b876a416bc2ca3c53e7d7e0296f7fcb7ce40#android)
 
 * add Contacts permission (in android/app/src/main/AndroidManifest.xml)
 (only add the permissions you need)
@@ -202,3 +217,7 @@ On android permission request is done upon install so this function will only sh
 - [ ] migrate iOS from AddressBook to Contacts
 - [ ] implement `get` with options
 - [ ] groups support
+
+## LICENSE
+
+[MIT License](LICENSE)
